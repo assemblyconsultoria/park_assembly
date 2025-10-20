@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: park-assembly-api
+    ports:
+      - "9090:9090"
+    environment:
+      # Database Configuration
+      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/projetos
+      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-}
+
+      # JPA Configuration
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+
+      # Application Configuration
+      SERVER_PORT: 9090
+      SPRING_APPLICATION_NAME: park-assembly
+
+      # Logging Configuration
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_WEB: INFO
+      LOGGING_LEVEL_ORG_HIBERNATE: INFO
+      LOGGING_LEVEL_COM_PARKING_API: DEBUG
+    networks:
+      - park-network
+    restart: unless-stopped
+    depends_on:
+      - db-check
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: park-assembly-frontend
+    ports:
+      - "4200:80"
+    networks:
+      - park-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      - API_URL=http://backend:9090
+
+  # Service to check if the local PostgreSQL database is accessible
+  db-check:
+    image: postgres:16-alpine
+    container_name: park-assembly-db-check
+    command: >
+      sh -c "
+      echo 'Checking PostgreSQL connection...' &&
+      until pg_isready -h host.docker.internal -p 5432 -U ${DB_USERNAME:-postgres}; do
+        echo 'Waiting for PostgreSQL to be ready...';
+        sleep 2;
+      done &&
+      echo 'PostgreSQL is ready!'
+      "
+    environment:
+      PGPASSWORD: ${DB_PASSWORD:-}
+    networks:
+      - park-network
+
+networks:
+  park-network:
+    driver: bridge
