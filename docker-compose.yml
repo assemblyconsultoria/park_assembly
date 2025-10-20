@@ -1,6 +1,31 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: park-assembly-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-park_assembly}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d
+    networks:
+      - park-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-park_assembly}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Spring Boot Backend API
   backend:
     build:
       context: .
@@ -10,14 +35,15 @@ services:
       - "9090:9090"
     environment:
       # Database Configuration
-      SPRING_DATASOURCE_URL: jdbc:postgresql://host.docker.internal:5432/projetos
-      SPRING_DATASOURCE_USERNAME: ${DB_USERNAME:-postgres}
-      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-park_assembly}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
 
       # JPA Configuration
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
 
       # Application Configuration
       SERVER_PORT: 9090
@@ -31,14 +57,16 @@ services:
       - park-network
     restart: unless-stopped
     depends_on:
-      - db-check
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/actuator/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
+  # Angular Frontend
   frontend:
     build:
       context: ./frontend
@@ -50,28 +78,15 @@ services:
       - park-network
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       - API_URL=http://backend:9090
-
-  # Service to check if the local PostgreSQL database is accessible
-  db-check:
-    image: postgres:16-alpine
-    container_name: park-assembly-db-check
-    command: >
-      sh -c "
-      echo 'Checking PostgreSQL connection...' &&
-      until pg_isready -h host.docker.internal -p 5432 -U ${DB_USERNAME:-postgres}; do
-        echo 'Waiting for PostgreSQL to be ready...';
-        sleep 2;
-      done &&
-      echo 'PostgreSQL is ready!'
-      "
-    environment:
-      PGPASSWORD: ${DB_PASSWORD:-}
-    networks:
-      - park-network
 
 networks:
   park-network:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
