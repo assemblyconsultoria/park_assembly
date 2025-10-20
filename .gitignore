@@ -39,3 +39,7 @@ mvnw.cmd
 
 ### Logs ###
 *.log
+
+### Claude Agents ###
+.claude-agents/
+.claude

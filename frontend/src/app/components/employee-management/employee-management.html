@@ -1,0 +1,88 @@
+<div class="employee-management">
+  <div class="header">
+    <h2>Gerenciamento de Funcionarios</h2>
+    <button (click)="openCreateModal()" class="btn-primary">+ Adicionar Funcionario</button>
+  </div>
+
+  <div class="alert alert-error" *ngIf="errorMessage">{{ errorMessage }}</div>
+  <div class="alert alert-success" *ngIf="successMessage">{{ successMessage }}</div>
+
+  <div class="table-container">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Usuario</th>
+          <th>Funcao</th>
+          <th>Data Criacao</th>
+          <th>Acoes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let user of users">
+          <td>{{ user.id }}</td>
+          <td>{{ user.username }}</td>
+          <td><span class="badge" [class.badge-admin]="user.role === 'ADMIN'">{{ user.role }}</span></td>
+          <td>{{ user.createdAt | date:'dd/MM/yyyy HH:mm' }}</td>
+          <td class="actions">
+            <button (click)="openEditModal(user)" class="btn-edit" title="Editar">Editar</button>
+            <button (click)="openPasswordModal(user.id)" class="btn-password" title="Alterar Senha">Senha</button>
+            <button (click)="deleteUser(user.id)" class="btn-delete" title="Excluir" [disabled]="isCurrentUser(user.id)">Excluir</button>
+          </td>
+        </tr>
+        <tr *ngIf="users.length === 0">
+          <td colspan="5" style="text-align: center">Nenhum usuario encontrado</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Modal Usuario -->
+  <div class="modal" *ngIf="showModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <h3>{{ isEditMode ? 'Editar Usuario' : 'Novo Usuario' }}</h3>
+      <form (ngSubmit)="saveUser()" #userForm="ngForm">
+        <div class="form-group">
+          <label>Usuario</label>
+          <input type="text" [(ngModel)]="currentUser.username" name="username" required />
+        </div>
+        <div class="form-group" *ngIf="!isEditMode">
+          <label>Senha</label>
+          <input type="password" [(ngModel)]="currentUser.password" name="password" required />
+        </div>
+        <div class="form-group">
+          <label>Funcao</label>
+          <select [(ngModel)]="currentUser.role" name="role" required>
+            <option value="USER">USER</option>
+            <option value="ADMIN">ADMIN</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" (click)="closeModal()" class="btn-cancel">Cancelar</button>
+          <button type="submit" [disabled]="!userForm.valid" class="btn-save">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Alterar Senha -->
+  <div class="modal" *ngIf="showPasswordModal" (click)="closeModal()">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <h3>Alterar Senha</h3>
+      <form (ngSubmit)="changePassword()" #passwordForm="ngForm">
+        <div class="form-group">
+          <label>Senha Atual</label>
+          <input type="password" [(ngModel)]="passwordChange.oldPassword" name="oldPassword" required />
+        </div>
+        <div class="form-group">
+          <label>Nova Senha</label>
+          <input type="password" [(ngModel)]="passwordChange.newPassword" name="newPassword" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" (click)="closeModal()" class="btn-cancel">Cancelar</button>
+          <button type="submit" [disabled]="!passwordForm.valid" class="btn-save">Alterar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

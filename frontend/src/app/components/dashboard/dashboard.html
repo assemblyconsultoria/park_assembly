@@ -1,0 +1,33 @@
+<div class="dashboard-container">
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <h2>Park Assembly</h2>
+    </div>
+    <div class="navbar-user">
+      <span>Bem-vindo, {{ currentUser?.username }}</span>
+      <button (click)="logout()" class="logout-button">Sair</button>
+    </div>
+  </nav>
+
+  <div class="dashboard-content">
+    <div class="sidebar">
+      <a routerLink="/dashboard/parking" routerLinkActive="active" class="menu-item">
+        <span class="icon">🚗</span>
+        <span>Gerenciar Estacionamento</span>
+      </a>
+      <a
+        *ngIf="isAdmin()"
+        routerLink="/dashboard/employees"
+        routerLinkActive="active"
+        class="menu-item"
+      >
+        <span class="icon">👥</span>
+        <span>Gerenciar Funcionarios</span>
+      </a>
+    </div>
+
+    <div class="main-content">
+      <router-outlet></router-outlet>
+    </div>
+  </div>
+</div>
